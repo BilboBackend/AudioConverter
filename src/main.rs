@@ -8,36 +8,38 @@ use clap::Parser;
 struct Args {
     #[arg(short,long)]
     filename: String,
+
+    #[arg(short,long, default_value_t = 16)]
+    bits: u16,
+    
+    #[arg(short,long,default_value_t = true)]
+    verbose: bool,
 }
 
 
 fn main() {
 
-    let file1 = Args::parse();
-    convert24to16bit(&file1.filename);
+    let file = Args::parse();
+    
+    let spec = hound::WavSpec {
+        channels: 1,
+        sample_rate: 44100,
+        bits_per_sample: file.bits,
+        sample_format: hound::SampleFormat::Int,
+    };
+
+    bitconverter(&file.filename, spec, file.verbose);
 }
 
-
-fn convert24to16bit(file: &str) {
+fn bitconverter(file: &str, spec: hound::WavSpec, verbose: bool) {
 
     if !Path::new(file).exists() {
         panic!("Non-existing file: {}", file);
     }
+
+
     let reader = hound::WavReader::open(file);
     
-    
-
-    println!("{}", reader.as_ref().unwrap().spec().bits_per_sample);
-    println!("{}", reader.as_ref().unwrap().spec().sample_rate);
-    
-    let mpcspec = hound::WavSpec {
-        channels: 1,
-        sample_rate: 44100,
-        bits_per_sample: 16,
-        sample_format: hound::SampleFormat::Int,
-    };
-
-     
     match reader {
         Ok(ref v) => v,
         Err(e) => {
@@ -45,16 +47,31 @@ fn convert24to16bit(file: &str) {
             },
     };
 
+    let suffix = match spec.bits_per_sample {
+        8 => "_8bit.wav",
+        16 => "_16bit.wav",
+        24 => "_24bit.wav",
+        _ => "no_change",
+    };
 
-    let newfilename = format!("{}{}",file.strip_suffix(".wav").expect("File does not have .wav extension"),"_16bit.wav");
-    println!("{}",newfilename);
-    let mut writer = hound::WavWriter::create(newfilename,mpcspec).unwrap();
 
-    let amplitude = 0.99; 
 
+    let newfilename = format!("{}{}",file.strip_suffix(".wav").expect("File does not have .wav extension"),suffix);
+
+    let mut writer = hound::WavWriter::create(newfilename.clone(),spec).unwrap();
+
+    let amplitude = 0.9; 
+
+    // Calculating bit conversion scale factor:
+    let originalbitsize = reader.as_ref().unwrap().spec().bits_per_sample;
+    println!("{}", 2^originalbitsize);
+
+    let base: i32 = 2;
+    let scale: f64 = (base.pow((originalbitsize - spec.bits_per_sample).into())).into();
+    
+    println!("{}", scale);
     // initializing stuff for dithering.
     let mut rng = rand::thread_rng();
-    let scale: f64 = 256.0; // = 2^24 / 2^16. 
     let scalingfactor: f64 = 0.8;
     let mut err: f64 = 0.0;
 
@@ -66,8 +83,13 @@ fn convert24to16bit(file: &str) {
         let scaled_dithered_sample = (scaled_sample as f64 + dither + scalingfactor * err).floor();
 
         err = (scaled_sample as f64 - scaled_dithered_sample).into();
-        
-        writer.write_sample((scaled_dithered_sample * amplitude) as i16).unwrap();
+       
+        match spec.bits_per_sample {
+            8 => writer.write_sample((scaled_dithered_sample * amplitude) as i8).unwrap(),
+            16 =>  writer.write_sample((scaled_dithered_sample * amplitude) as i16).unwrap(),
+            24 =>  writer.write_sample((scaled_dithered_sample * amplitude) as i32).unwrap(),
+            _ => writer.write_sample((scaled_dithered_sample * amplitude) as i32).unwrap(),
+        }
     }
     
 
@@ -76,6 +98,14 @@ fn convert24to16bit(file: &str) {
         Err(e) => println!("Finalization faild due to: {}", e),
     } ;
 
-    println!("Finished Processing!");
+
+    if verbose {
+        let readercheck = hound::WavReader::open(newfilename.clone());
+        println!("Info on processed file: ");
+        println!("sample rate: {}", readercheck.as_ref().unwrap().spec().sample_rate);
+        println!("bits: {}", readercheck.as_ref().unwrap().spec().bits_per_sample);
+    }
+
  
+    println!("Finished Processing!");
 }
