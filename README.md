@@ -13,7 +13,7 @@ This will create a 16 bit version of the file in the same directory as the file.
 There are optional arguments as --bits <bits> to specify the number of bits wanted for conversion, and
 a verbose flag that can be either true or false, which provides some conversion info.
 
-'audio_bit_converter --filename <filename> --bits 16 --verbose true'
+`audio_bit_converter --filename <filename> --bits 16 --verbose true`
 
 
 
