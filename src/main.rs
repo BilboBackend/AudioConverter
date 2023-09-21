@@ -1,13 +1,20 @@
 use hound;
 use rand::Rng;
 use std::path::Path;
+use clap::Parser;
+
+#[derive(Parser,Debug)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    #[arg(short,long)]
+    filename: String,
+}
+
 
 fn main() {
 
-    let file1 = "ND2sample1.wav";
-
-    convert24to16bit(file1);
-
+    let file1 = Args::parse();
+    convert24to16bit(&file1.filename);
 }
 
 
@@ -17,6 +24,8 @@ fn convert24to16bit(file: &str) {
         panic!("Non-existing file: {}", file);
     }
     let reader = hound::WavReader::open(file);
+    
+    
 
     println!("{}", reader.as_ref().unwrap().spec().bits_per_sample);
     println!("{}", reader.as_ref().unwrap().spec().sample_rate);
@@ -36,7 +45,10 @@ fn convert24to16bit(file: &str) {
             },
     };
 
-    let mut writer = hound::WavWriter::create("outputtest_08dither_amp01.wav",mpcspec).unwrap();
+
+    let newfilename = format!("{}{}",file.strip_suffix(".wav").expect("File does not have .wav extension"),"_16bit.wav");
+    println!("{}",newfilename);
+    let mut writer = hound::WavWriter::create(newfilename,mpcspec).unwrap();
 
     let amplitude = 0.99; 
 
