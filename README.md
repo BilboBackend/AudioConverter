@@ -18,8 +18,8 @@ a verbose flag which provides some conversion info.
 
 `audio_bit_converter --filename <filename> --bits 16 --verbose true`
 
-If you want to specify a destination folder you can simply use the flag `--destination`, this will specify a string, 
-which will be prepended to the filenames.
+If you want to specify a destination folder you can simply use the flag `--destination <path>`,  
+which will be prepend the path to the filenames.
 
 
 
