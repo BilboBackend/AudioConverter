@@ -6,8 +6,8 @@ use clap::Parser;
 #[derive(Parser,Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
-    #[arg(short,long)]
-    filename: String,
+    #[arg(short,long, value_parser, num_args = 1.., value_delimiter = ' ')]
+    filenames: Vec<String>,
 
     #[arg(short,long, default_value_t = 16)]
     bits: u16,
@@ -16,23 +16,29 @@ struct Args {
     destination: String,
 
 
-    #[arg(short,long,default_value_t = true)]
+    #[arg(short,long,default_value_t = false)]
     verbose: bool,
 }
 
 
 fn main() {
 
-    let file = Args::parse();
-    
+    let input = Args::parse();
+
     let spec = hound::WavSpec {
         channels: 1,
         sample_rate: 44100,
-        bits_per_sample: file.bits,
+        bits_per_sample: input.bits,
         sample_format: hound::SampleFormat::Int,
     };
-
-    bitconverter(&file.filename, spec, file.verbose, file.destination);
+ 
+    let dest = input.destination.clone();
+    let verbosity = input.verbose.clone();
+   
+    for filename in input.filenames {
+        bitconverter(&filename, spec, verbosity, dest.clone());
+    }
+    println!("Finished processing!")
 }
 
 fn bitconverter(file: &str, spec: hound::WavSpec, verbose: bool, destination: String) {
@@ -116,16 +122,9 @@ fn bitconverter(file: &str, spec: hound::WavSpec, verbose: bool, destination: St
             n if n <= 16 =>  println!("Bit-rate is {} and is saved as 16-bit", n),
             n if n <= 24 =>  println!("Bit-rate is {} and is saved as 24-bit", n),
             n =>  println!("Bit-rate is {} and is saved as 32-bit", n),
-        };
-        //
-        // let readercheck = hound::WavReader::open(newfilename.clone());
-        // println!("Info on processed file: ");
-        // println!("sample rate: {}", readercheck.as_ref().unwrap().spec().sample_rate);
-        // println!("bits: {}", readercheck.as_ref().unwrap().spec().bits_per_sample);
-    }
+        }; 
+    };
 
- 
-    println!("Finished Processing!");
 }
 
 

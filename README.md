@@ -7,13 +7,19 @@ This is a simple CLI tool for converting WAV files to either 8,16 or 24bit.
 
 To convert a file simply use the command:
 
-`audio_bit_converter --filename <filename>`
+`audio_bit_converter --filenames <filenames>`
 
 This will create a 16 bit version of the file in the same directory as the file.
-There are optional arguments as --bits <bits> to specify the number of bits wanted for conversion, and
-a verbose flag that can be either true or false, which provides some conversion info.
+
+The --filenames flag takes multiple inputs either separated by spaces, but also support regex.
+
+There are optional arguments as --bits <bits> to specify the number of bits, 8, 16 or 24, wanted for conversion, and
+a verbose flag which provides some conversion info.
 
 `audio_bit_converter --filename <filename> --bits 16 --verbose true`
+
+If you want to specify a destination folder you can simply use the flag `--destination`, this will specify a string, 
+which will be prepended to the filenames.
 
 
 
