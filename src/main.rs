@@ -3,6 +3,9 @@ use rand::Rng;
 use std::path::Path;
 use clap::Parser;
 
+
+mod fft;
+
 #[derive(Parser,Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
