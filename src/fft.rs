@@ -3,7 +3,6 @@ use num::complex::Complex;
 use num::pow;
 use plotters::prelude::*;
 
-
 const OUT_FILE_NAME: &str = "./testplot.png";
 
 const PI32: f32= PI as f32;
@@ -11,10 +10,8 @@ const PI32: f32= PI as f32;
 
 fn fast_fourier_transform(samples: Vec<Complex<f32>>, sample_rate: i32) -> Vec<Complex<f32>> {
     
-
     let n_full = samples.len();
-
-    
+   
     // calculating blocklength to make sure it is a power of 2.
     let n = pow(2,(n_full as f32).log2().floor() as usize);
 
@@ -34,66 +31,58 @@ fn fast_fourier_transform(samples: Vec<Complex<f32>>, sample_rate: i32) -> Vec<C
         .collect();
 
     // Converting to complex numbers
-    let complex_samples: Vec<Complex<f32>> = sel_samples.into_iter().map(|x| Complex::new(x.re,0.0)).collect();
+    let complex_samples: Vec<Complex<f32>> = sel_samples
+        .into_iter()
+        .map(|x| Complex::new(x.re,0.0))
+        .collect();
 
     // calculating nth root of unity
     let x = Complex::new(0.0, -2.0 * PI32 / (n as f32));
     let omega = x.exp();
 
         
-    let mut r0 = vec![];
-    let mut r1 = vec![];
+    let mut even = vec![];
+    let mut odd = vec![];
      
     for j in 0..(n/2) {
-        r0.push(complex_samples[j] + complex_samples[j+n/2]);
-        r1.push((complex_samples[j] - complex_samples[j+n/2]) * pow(omega,j));
-
+        even.push(complex_samples[2*j]);
+        odd.push(complex_samples[2*j+1]);
     }    
+    
+    even = fast_fourier_transform(even, sample_rate);
+    odd = fast_fourier_transform(odd, sample_rate);
 
     let mut dft = vec![];
-    dft.append(&mut fast_fourier_transform(r0, sample_rate));
-    dft.append(&mut fast_fourier_transform(r1, sample_rate));
 
+    let mut dft1 = vec![];
+    let mut dft2 = vec![];
+
+    for j in 0..(n/2) {
+        dft1.push(even[j] + pow(omega,j) * odd[j]);
+        dft2.push(even[j] - pow(omega,j) * odd[j]);
+    }
+
+    dft.append(&mut dft1);
+    dft.append(&mut dft2);
+    
     dft
-
 
 }
 
 
-// Can be made into a property based test, with different freqs. 
-#[test]
-fn test_simple_sine() {
+fn plot_freq_spectrum(filename: String, samples: &mut Vec<i32>, sample_rate: i32 ) {
     
+    let complex_samples: Vec<Complex<f32>> = samples
+        .into_iter()
+        .map(|x| Complex::new(*x as f32,0.0))
+        .collect();
+    
+    let n = pow(2,(samples.len() as f32).log2().floor() as usize) as f32;
 
-    let sample_rate = 800;  
-    let time_points = 100;           
+    let freq_resolution = n as f32 / sample_rate as f32  ; 
+    let bandwidth: usize = sample_rate as usize / 2 as usize;
 
-    let freq: f32 = 300.0;
-
-    let blocklength = pow(2,10);
-
-    let bandwidth: usize = sample_rate / 2 as usize;
-
-    let mut samples = vec![];
-
-    for t in (0 .. time_points * sample_rate).map(|x| x as f32 / sample_rate as f32) {
-
-        let sample = (t * freq * 2.0 * PI as f32 ).sin();
-        let amplitude = i32::MAX as f32;
-        samples.push(Complex::new(sample * amplitude, 0.0));
-    }
-
-    let n_full = samples.len();
-    let n = pow(2,(n_full as f32).log2().floor() as usize) as f32;
-
-    let _duration = n / sample_rate as f32;
-    let freq_resolution = sample_rate as f32 / blocklength as f32 ; 
-
-    let upperband: usize = bandwidth;
-
-    let dft = &fast_fourier_transform(samples.clone(), sample_rate as i32)[0..time_points/2];
-
-
+    let dft = &fast_fourier_transform(complex_samples, sample_rate as i32)[0..(n as usize / 2)];
 
     let (max_index,max_amplitude) = dft
         .into_iter()
@@ -101,20 +90,12 @@ fn test_simple_sine() {
         .enumerate()
         .max_by(|(_,a),(_,b)| a.total_cmp(&b))
         .expect("No valid max frequency");  
-  
+ 
 
     let plotvals = dft
         .into_iter()
         .enumerate()
-        .map(|(i,v)| (i as f32 * freq_resolution, v.norm()/max_amplitude));
-    
-
-
-
-
-
-
-    // plotting
+        .map(|(i,v)| (i as f32 * freq_resolution as f32, v.norm()/max_amplitude));
     
     let root_area = BitMapBackend::new(OUT_FILE_NAME, (1024, 768)).into_drawing_area();
 
@@ -127,7 +108,7 @@ fn test_simple_sine() {
         .margin(5)
         .set_all_label_area_size(50)
         .caption("Frequency Content", ("sans-serif", 40))
-        .build_cartesian_2d(0.0 .. upperband as f32, 0.0..1.0 as f32).expect("Can't build canvas");
+        .build_cartesian_2d(0.0 .. bandwidth as f32, 0.0..1.0 as f32).expect("Can't build canvas");
 
     cc.configure_mesh()
         .x_labels(20)
@@ -140,36 +121,54 @@ fn test_simple_sine() {
     cc.draw_series(LineSeries::new(plotvals, &RED)).expect("Can't draw")
         .label("Frequencies")
         .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], RED));
-
-    // cc.draw_series(LineSeries::new(
-    //     x_axis.values().map(|x| (x, x.cos())),
-    //     &BLUE,
-    // ))?
-    // .label("Cosine")
-    // .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], BLUE));
-    //
-    //cc.configure_series_labels().border_style(BLACK).draw().;
     
 
+}
 
 
+fn get_n_freqs(sample)
+
+// Can be made into a property based test, with different freqs. 
+#[test]
+fn test_simple_sine() {
+    
+    let sample_rate = pow(2,12);  
+    let time_points = 1;           
+
+    let freq: f32 = 600.0;
+
+    let bandwidth: usize = sample_rate / 2 as usize;
+
+    let mut samples: Vec<Complex<f32>> = vec![];
+
+    for t in (0 .. time_points * sample_rate).map(|x| x as f32 / sample_rate as f32) {
+
+        let sample = (t * freq * 2.0 * PI as f32 ).sin();
+        let amplitude = i32::MAX as f32;
+        samples.push(Complex::new(sample * amplitude, 0.0));
+    }
+
+    // Sanitizing sample input length.
+    let n = pow(2,(samples.len() as f32).log2().floor() as usize) as f32;
+
+    let freq_resolution = n as f32 / sample_rate as f32  ; 
+
+    let dft = &fast_fourier_transform(samples.clone(), sample_rate as i32)[0..(n as usize / 2)];
 
 
+    let (max_index,max_amplitude) = dft
+        .into_iter()
+        .map(|x| x.norm())
+        .enumerate()
+        .max_by(|(_,a),(_,b)| a.total_cmp(&b))
+        .expect("No valid max frequency");  
+  
 
-
-
-
-
-
-
-
-    //println!("{:?}", dft.clone().into_iter().map(|x| x.norm()));
-
-    println!("{:?}", freq_resolution);
-    println!("{:?}", max_index as f32 * freq_resolution);
+    println!("{:?}", max_index as f32 * freq_resolution );
     assert_eq!(max_index as f32 * freq_resolution,freq);
 }
 
 
+
+
 // Make a property based test on FFT and inverse. 
-// Also test lemma 8.11

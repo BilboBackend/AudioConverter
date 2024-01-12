@@ -11,4 +11,5 @@ hound = "3.5.0"
 num = "0.4.1"
 plotters = "0.3.5"
 rand = "0.8.5"
+rustfft = "6.1.0"
 
